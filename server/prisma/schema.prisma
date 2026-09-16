@@ -1,0 +1,413 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  LECTURER
+  ACADEMIC_OFFICER
+  STUDENT
+}
+
+enum ComplianceStatus {
+  COMPLIANT
+  PARTIALLY_COMPLIANT
+  NON_COMPLIANT
+  AT_RISK
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AssessmentType {
+  CAT
+  ASSIGNMENT
+  EXAM
+}
+
+enum RecordReviewStatus {
+  PENDING
+  APPROVED
+  FLAGGED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  firstName        String
+  lastName         String
+  role             Role
+  isActive         Boolean   @default(true)
+  emailVerified    Boolean   @default(false)
+  otpCode          String?
+  otpExpiresAt     DateTime?
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  student         Student?
+  lecturer        Lecturer?
+  academicOfficer AcademicOfficer?
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  reports         ReportJob[]
+  contactMessages ContactMessage[]
+  settings         UserSettings?
+  reviewedRecs    AiRecommendation[] @relation("RecommendationReviewer")
+  reviewedRecords ComplianceRecord[] @relation("RecordReviewer")
+}
+
+model UserSettings {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailNotifications Boolean  @default(true)
+  inAppNotifications Boolean  @default(true)
+  digestFrequency    String   @default("DAILY")
+  language           String   @default("en")
+  timezone           String   @default("UTC")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Student {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regNo       String   @unique
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id])
+  yearOfStudy Int      @default(1)
+  createdAt   DateTime @default(now())
+
+  enrollments     Enrollment[]
+  marks           Mark[]
+  compliance      ComplianceRecord[]
+  alerts          AcademicAlert[]
+  recommendations AiRecommendation[]
+}
+
+model Lecturer {
+  id           String     @id @default(cuid())
+  userId       String     @unique
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffNo      String     @unique
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  offerings CourseOffering[]
+}
+
+model AcademicOfficer {
+  id           String     @id @default(cuid())
+  userId       String     @unique
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffNo      String     @unique
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt    DateTime   @default(now())
+}
+
+model School {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  departments Department[]
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  programs  Program[]
+  lecturers Lecturer[]
+  officers  AcademicOfficer[]
+  courses   Course[]
+
+  @@unique([schoolId, name])
+}
+
+model Program {
+  id           String     @id @default(cuid())
+  name         String
+  code         String     @unique
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  requiredCredits Int     @default(120)
+  createdAt    DateTime   @default(now())
+
+  students Student[]
+  courses  Course[]
+
+  @@unique([departmentId, name])
+}
+
+model Course {
+  id           String     @id @default(cuid())
+  code         String     @unique
+  title        String
+  credits      Int        @default(3)
+  isCore       Boolean    @default(true)
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  programId    String?
+  program      Program?   @relation(fields: [programId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  offerings      CourseOffering[]
+  prerequisites  CoursePrerequisite[] @relation("CourseHasPrereqs")
+  requiredFor    CoursePrerequisite[] @relation("CourseIsPrereq")
+}
+
+model CoursePrerequisite {
+  id             String @id @default(cuid())
+  courseId       String
+  course         Course @relation("CourseHasPrereqs", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisiteId String
+  prerequisite   Course @relation("CourseIsPrereq", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, prerequisiteId])
+}
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  startsOn  DateTime
+  endsOn    DateTime
+  isCurrent Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  semesters Semester[]
+}
+
+model Semester {
+  id             String       @id @default(cuid())
+  name           String
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  startsOn       DateTime
+  endsOn         DateTime
+  isCurrent      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  offerings          CourseOffering[]
+  complianceRecords  ComplianceRecord[]
+
+  @@unique([academicYearId, name])
+}
+
+model CourseOffering {
+  id         String   @id @default(cuid())
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id])
+  semesterId String
+  semester   Semester @relation(fields: [semesterId], references: [id])
+  lecturerId String
+  lecturer   Lecturer @relation(fields: [lecturerId], references: [id])
+  createdAt  DateTime @default(now())
+
+  enrollments  Enrollment[]
+  assessments  Assessment[]
+
+  @@unique([courseId, semesterId])
+}
+
+model Enrollment {
+  id         String         @id @default(cuid())
+  studentId  String
+  student    Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  offeringId String
+  offering   CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+
+  attendance AttendanceRecord[]
+  grade      Grade?
+
+  @@unique([studentId, offeringId])
+}
+
+model Assessment {
+  id         String         @id @default(cuid())
+  offeringId String
+  offering   CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  title      String
+  type       AssessmentType
+  weight     Float
+  maxScore   Float          @default(100)
+  dueDate    DateTime?
+  createdAt  DateTime       @default(now())
+
+  marks Mark[]
+}
+
+model Mark {
+  id            String     @id @default(cuid())
+  assessmentId  String
+  assessment    Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score         Float
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([assessmentId, studentId])
+}
+
+model Grade {
+  id           String     @id @default(cuid())
+  enrollmentId String     @unique
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  letter       String
+  points       Float
+  percentage   Float
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model AttendanceRecord {
+  id           String           @id @default(cuid())
+  enrollmentId String
+  enrollment   Enrollment       @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  sessionDate  DateTime
+  status       AttendanceStatus
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([enrollmentId, sessionDate])
+}
+
+model ComplianceRule {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String
+  enabled     Boolean  @default(true)
+  threshold   Float?
+  config      Json?
+  updatedAt   DateTime @updatedAt
+}
+
+model ComplianceRecord {
+  id               String              @id @default(cuid())
+  studentId        String
+  student          Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  semesterId       String
+  semester         Semester            @relation(fields: [semesterId], references: [id])
+  status           ComplianceStatus
+  riskLevel        RiskLevel
+  compliancePct    Float
+  gpa              Float
+  cgpa             Float
+  attendancePct    Float
+  completionPct    Float
+  failedCourses    Int
+  pendingCourses   Int
+  details          Json
+  reviewStatus     RecordReviewStatus  @default(PENDING)
+  reviewNote       String?
+  reviewedById     String?
+  reviewedBy       User?               @relation("RecordReviewer", fields: [reviewedById], references: [id])
+  computedAt       DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@unique([studentId, semesterId])
+}
+
+model AcademicAlert {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type       String
+  message    String
+  severity   String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+model AiRecommendation {
+  id             String    @id @default(cuid())
+  studentId      String
+  student        Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  riskLevel      RiskLevel
+  explanation    String
+  recommendations Json
+  source         String    @default("local")
+  overridden     Boolean   @default(false)
+  overrideRisk   RiskLevel?
+  overrideNote   String?
+  reviewedById   String?
+  reviewedBy     User?     @relation("RecommendationReviewer", fields: [reviewedById], references: [id])
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model ReportJob {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  format    String
+  filters   Json?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([action])
+  @@index([createdAt])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  message   String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
