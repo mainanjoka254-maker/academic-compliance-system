@@ -3,7 +3,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $node = (Get-Command node -ErrorAction Stop).Source
 $npm = (Get-Command npm.cmd -ErrorAction Stop).Source
 
-$serverDist = Join-Path $root "server\dist\index.js"
+$serverDist = Join-Path $root "server\dist\src\index.js"
 $clientDist = Join-Path $root "client\dist"
 if (!(Test-Path $serverDist) -or !(Test-Path $clientDist)) {
   throw "Build first with: npm.cmd run build"
