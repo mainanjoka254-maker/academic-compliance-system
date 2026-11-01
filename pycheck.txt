@@ -1,0 +1,8 @@
+﻿python : Python was not found; run without arguments to install from the Microsoft Store, or disable this shortcut from 
+Settings > Apps > Advanced app settings > App execution aliases.
+At line:1 char:1
++ python --version 2>&1 | Out-File -FilePath 'C:\Users\user\Documents\G ...
++ ~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Python was not ...cution aliases.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

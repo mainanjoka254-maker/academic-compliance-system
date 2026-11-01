@@ -1,0 +1,5 @@
+﻿C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe missing
+C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe missing
+C:\ProgramData\MySQL\MySQL Server 8.0\bin\mysql.exe missing
+C:\xampp\mysql\bin\mysql.exe missing
+C:\wamp64\bin\mysql\mysql8.0\bin\mysql.exe missing

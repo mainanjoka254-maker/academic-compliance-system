@@ -1,0 +1,17 @@
+﻿Common Files
+Git
+Google
+Internet Explorer
+Microsoft Office
+Microsoft Office 15
+Microsoft OneDrive
+ModifiableWindowsApps
+nodejs
+PostgreSQL
+Windows Defender
+Windows Defender Advanced Threat Protection
+Windows Mail
+Windows Media Player
+Windows NT
+Windows Photo Viewer
+WindowsPowerShell

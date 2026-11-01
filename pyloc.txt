@@ -1,0 +1,2 @@
+﻿Launcher
+Python312

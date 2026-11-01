@@ -1,0 +1,10 @@
+﻿Found MySQL [Oracle.MySQL] Version 8.4.9
+This application is licensed to you by its owner.
+Microsoft is not responsible for, nor does it grant any licenses to, third-party packages.
+This package requires the following dependencies:
+  - Packages
+      Microsoft.VCRedist.2015+.x64
+Downloading https://cdn.mysql.com/Downloads/MySQL-8.4/mysql-8.4.9-winx64.msi
+Successfully verified installer hash
+Starting package install...
+Successfully installed

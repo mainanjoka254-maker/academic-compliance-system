@@ -1,0 +1,1 @@
+export default function About(){ return <div className="p-8 max-w-4xl mx-auto"><h1 className="text-3xl font-bold mb-4">About ADCS</h1><p className="text-gray-700">ADCS helps institutions monitor academic compliance, detect at-risk students early, and manage compliance cases with full audit trails.</p></div> }

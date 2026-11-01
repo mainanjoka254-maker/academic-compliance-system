@@ -1,0 +1,5 @@
+﻿#innodb_redo
+#innodb_temp
+mysql
+performance_schema
+sys

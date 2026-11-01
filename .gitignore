@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+*.egg-info/
+.pytest_cache/
+ADCS/backend/private_uploads/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# DB
+*.sql
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

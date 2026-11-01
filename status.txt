@@ -1,0 +1,6 @@
+﻿C:\Python312\python.exe missing
+C:\Python311\python.exe missing
+C:\Program Files\Python312\python.exe missing
+C:\Program Files\Python311\python.exe missing
+C:\Program Files\nodejs\node.exe EXISTS
+C:\Program Files\nodejs\npm.cmd EXISTS

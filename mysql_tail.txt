@@ -1,0 +1,3 @@
+﻿Downloading https://cdn.mysql.com/Downloads/MySQL-8.4/mysql-8.4.9-winx64.msi
+Successfully verified installer hash
+Starting package install...
