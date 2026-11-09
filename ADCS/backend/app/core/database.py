@@ -9,6 +9,13 @@ class Base(DeclarativeBase):
     pass
 
 
+_connect_args = {}
+if settings.DB_SSL:
+    _ssl: dict = {}
+    if settings.DB_SSL_CA:
+        _ssl["ca"] = settings.DB_SSL_CA
+    _connect_args["ssl"] = _ssl if _ssl else {"ssl": {}}
+
 engine = create_engine(
     settings.DATABASE_URL,
     echo=settings.DB_ECHO,
@@ -17,6 +24,7 @@ engine = create_engine(
     max_overflow=20,
     pool_pre_ping=True,
     pool_recycle=3600,
+    connect_args=_connect_args,
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

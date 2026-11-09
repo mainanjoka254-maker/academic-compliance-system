@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     DB_PASSWORD: str
     DB_NAME: str
     DB_ECHO: bool = False
+    DB_SSL: bool = False
+    DB_SSL_CA: str = ""
 
     @property
     def DATABASE_URL(self) -> URL:
