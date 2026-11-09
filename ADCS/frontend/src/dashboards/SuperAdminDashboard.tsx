@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '@/services/api'
 import InstitutionManagementPanel from '@/components/InstitutionManagementPanel'
-import LecturerRegistrationRequestsPanel from '@/components/LecturerRegistrationRequestsPanel'
+import AccountRequestsPanel from '@/components/AccountRequestsPanel'
 
 export default function SuperAdminDashboard() {
   const [summary, setSummary] = useState<any>(null)
@@ -23,7 +23,7 @@ export default function SuperAdminDashboard() {
         </div>
       )}
       <InstitutionManagementPanel />
-      <LecturerRegistrationRequestsPanel />
+      <AccountRequestsPanel />
     </div>
   )
 }

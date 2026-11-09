@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     # Rate limiting
     RATE_LIMIT_LOGIN: str = "5/minute"
     RATE_LIMIT_REGISTER: str = "3/minute"
+    RATE_LIMIT_ACCOUNT_STATUS: str = "10/minute"
 
     # Risk thresholds (defaults, overridable per institution)
     DEFAULT_ATTENDANCE_THRESHOLD: float = 75.0

@@ -18,6 +18,9 @@ def _roles_list(u):
     return [r.name for r in u.roles]
 
 
+STAFF_ROLES = {"student", "lecturer", "registrar", "compliance_officer", "university_admin", "super_admin"}
+
+
 @router.post("", status_code=201)
 def create_user(payload: UserCreate, db: Session = Depends(get_db), current_user=Depends(require_roles("university_admin", "super_admin", "registrar"))):
     normalized_email = str(payload.email).strip().lower()

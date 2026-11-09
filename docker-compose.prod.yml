@@ -1,0 +1,67 @@
+# ADCS production stack (Docker Compose)
+# - backend: FastAPI + Alembic migrations on start, restart: always
+# - frontend: Nginx serving built SPA and proxying /api to backend
+# - db: MySQL 8 (for strict Oracle MySQL compatibility). Use a MANAGED MySQL in production when possible.
+#
+# Usage:
+#   cp deploy/.env.production.example deploy/.env.production  # fill secrets
+#   docker compose --env-file deploy/.env.production -f docker-compose.prod.yml up -d --build
+#
+# NOTE: For true 24/7 public hosting, deploy this stack to an always-on host (VPS/cloud).
+# "Free always-on" options are limited and vary by provider eligibility/terms; verify before relying on them.
+
+services:
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - adcs_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Do NOT publish 3306 publicly in production; keep DB private to the Docker network.
+
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    restart: always
+    env_file:
+      - deploy/.env.production
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - adcs_uploads:/app/private_uploads
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+    restart: always
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${PUBLIC_HTTP_PORT:-80}:80"
+    # For HTTPS: put this behind Caddy/Traefik or terminate TLS at a cloud load balancer with your domain.
+
+volumes:
+  adcs_mysql_data:
+  adcs_uploads:

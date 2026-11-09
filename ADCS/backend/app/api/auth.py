@@ -35,13 +35,15 @@ def _get_or_create_role(db, name):
 @router.post("/register", status_code=201)
 @limiter.limit(settings.RATE_LIMIT_REGISTER)
 def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)):
-    requested_role = payload.role_requested or "student"
-    if requested_role not in {"student", "lecturer"}:
-        raise HTTPException(status_code=403, detail="Privileged roles require institutional approval")
-    if requested_role == "lecturer" and not payload.staff_number:
-        raise HTTPException(status_code=422, detail="A staff number is required for lecturer registration")
+    requested_role = (payload.role_requested or "student").strip().lower()
+    self_register_roles = {"student", "lecturer", "registrar", "compliance_officer", "university_admin"}
+    staff_request_roles = {"lecturer", "registrar", "compliance_officer", "university_admin"}
+    if requested_role not in self_register_roles:
+        raise HTTPException(status_code=403, detail="This role cannot be self-registered")
+    if requested_role in staff_request_roles and not payload.staff_number:
+        raise HTTPException(status_code=422, detail="A staff/employee number is required for institutional staff registration")
     if requested_role == "student" and payload.staff_number is not None:
-        raise HTTPException(status_code=422, detail="Staff number is only valid for lecturer registration")
+        raise HTTPException(status_code=422, detail="Staff number is only valid for staff registration")
     normalized_email = str(payload.email).strip().lower()
     if db.query(User).filter(User.email == normalized_email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -49,10 +51,9 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
     inst = db.query(Institution).filter(Institution.id == payload.institution_id, Institution.is_active == True).first()
     if not inst:
         raise HTTPException(status_code=400, detail="Invalid or inactive institution")
-    lecturer_request = requested_role == "lecturer"
-    if lecturer_request:
+    staff_request = requested_role in staff_request_roles
+    if staff_request:
         from app.models.student import Lecturer
-
         duplicate_staff_number = db.query(Lecturer.id).filter(
             Lecturer.institution_id == payload.institution_id,
             Lecturer.staff_number == payload.staff_number,
@@ -71,14 +72,14 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
         phone=payload.phone,
         institution_id=payload.institution_id,
         auth_provider="password",
-        requested_role="lecturer" if lecturer_request else None,
-        requested_staff_number=payload.staff_number if lecturer_request else None,
-        approval_status="pending" if lecturer_request else "approved",
+        requested_role=requested_role if staff_request else None,
+        requested_staff_number=payload.staff_number if staff_request else None,
+        approval_status="pending" if staff_request else "approved",
         is_active=False,
         is_verified=False,
     )
     db.add(user); db.commit(); db.refresh(user)
-    if not lecturer_request:
+    if not staff_request:
         role = _get_or_create_role(db, "student")
         user.roles.append(role); db.commit()
         from app.models.student import Student
@@ -88,32 +89,43 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
     tok = EmailVerificationToken(user_id=user.id, token=otp, expires_at=datetime.now(timezone.utc) + timedelta(minutes=settings.EMAIL_OTP_EXPIRE_MINUTES))
     db.add(tok); db.commit()
     if not send_email(normalized_email, "ADCS Email Verification", f"Your verification code is: {otp}"):
-        log_action(
-            db,
-            "verification_email_delivery_failed",
-            user_id=user.id,
-            institution_id=payload.institution_id,
-            success=False,
-        )
-        raise HTTPException(
-            status_code=503,
-            detail="Your account was created, but verification email delivery failed. Configure SMTP and request a new code.",
-        )
-    create_notification(
-        db,
-        user.id,
-        "Verify your account",
-        "A verification code was sent to your email address.",
-        type_="account_verification",
-        institution_id=payload.institution_id,
-    )
+        log_action(db, "verification_email_delivery_failed", user_id=user.id, institution_id=payload.institution_id, success=False)
+        raise HTTPException(status_code=503, detail="Your account was created, but verification email delivery failed. Configure SMTP and request a new code.")
+    create_notification(db, user.id, "Verify your account", "A verification code was sent to your email address.", type_="account_verification", institution_id=payload.institution_id)
     log_action(db, "user_registered", user_id=user.id, institution_id=payload.institution_id)
     message = (
-        "Lecturer request submitted. Verify your email; institutional approval is also required."
-        if lecturer_request
+        f"{requested_role.replace('_', ' ').title()} account request submitted. Verify your email; institutional approval is also required before you can sign in."
+        if staff_request
         else "Registration successful. Please verify your email with the OTP sent."
     )
     return {"message": message, "user_id": user.id}
+
+
+@router.get("/account-status")
+@limiter.limit(settings.RATE_LIMIT_ACCOUNT_STATUS)
+def account_status(email: str, request: Request, db: Session = Depends(get_db)):
+    """Public, non-enumerating status check for a registration (no sensitive data leaked)."""
+    normalized_email = str(email).strip().lower()
+    user = db.query(User).filter(User.email == normalized_email).first()
+    if not user:
+        return {"found": False, "message": "No account request found for this email address."}
+    status_label = "active"
+    if not user.is_verified:
+        status_label = "email_verification_required"
+    elif user.approval_status == "pending":
+        status_label = "pending_approval"
+    elif user.approval_status == "rejected":
+        status_label = "not_approved"
+    elif not user.is_active:
+        status_label = "inactive"
+    role = user.requested_role or ([r.name for r in user.roles][0] if user.roles else None)
+    return {
+        "found": True,
+        "status": status_label,
+        "requested_role": role,
+        "is_verified": user.is_verified,
+        "approval_status": user.approval_status,
+    }
 
 
 @router.post("/resend-otp")
@@ -185,10 +197,13 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     if not user or not user.hashed_password or not verify_password(payload.password, user.hashed_password):
         log_action(db, "login_failed", success=False)
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user.is_verified:
+        raise HTTPException(status_code=403, detail="Please verify your email address before signing in.")
     if user.approval_status == "pending":
-        raise HTTPException(status_code=403, detail="Your lecturer registration is awaiting institutional approval.")
+        role_label = (user.requested_role or "account").replace("_", " ")
+        raise HTTPException(status_code=403, detail=f"Your {role_label} account request is awaiting institutional approval.")
     if user.approval_status == "rejected":
-        raise HTTPException(status_code=403, detail="Your lecturer registration was not approved. Contact your institution.")
+        raise HTTPException(status_code=403, detail="Your account request was not approved. Contact your institution.")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account not active.")
     user.last_login_at = datetime.now(timezone.utc); db.commit()

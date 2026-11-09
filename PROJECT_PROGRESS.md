@@ -74,3 +74,22 @@ Use MySQL Workbench with host `127.0.0.1`, port `3306`, schema `adcs_db`, and th
 - Added profiles, settings, announcements, support tickets, stats endpoints and migrations.
 - Frontend Settings page and animated background added.
 
+
+## 2026-11-09 (Kilo) - Kenya institutions seed
+- Added idempotent seed script ADCS/backend/seed_kenya_institutions.py (safe insert-only; matches by code/name; no deletes/overwrites).
+- Seeded Kenyan higher-education & TVET institutions into primary DB: **120 total** (71 universities, 3 university colleges, 11 national polytechnics, 35 TVET institutes/colleges), all active, country=Kenya.
+- Registration options and homepage stats now reflect real DB data. Backend tests: 42 passed; alembic check clean.
+
+
+## 2026-11-09 (Kilo) - Production deployment package (Docker) + LAN phone access
+- Added production-ready Docker stack: docker-compose.prod.yml, deploy/backend.Dockerfile (alembic upgrade head + uvicorn, restart always, /health), deploy/frontend.Dockerfile + deploy/nginx.conf (SPA + /api proxy), deploy/.env.production.example, deploy/DEPLOYMENT.md, .dockerignore.
+- Frontend serves/proxies API (no localhost on clients); DB private in compose; MySQL 8 image for strict MySQL (managed MySQL recommended). Honest note: free tiers may sleep - 24/7 needs an always-on host (e.g., DO Droplet/VPS).
+- LAN verified: http://172.31.27.155:4173 (app) and backend health OK on LAN IP; CORS/preview proxy configured.
+- Tests after packaging: backend 42 passed, frontend 14 passed, build OK. No secrets committed.
+
+
+## 2026-11-09 (Kilo) - Windows local always-on scripts
+- Added deploy/windows/install-adcs-autostart.ps1, start-adcs-now.ps1, uninstall-adcs-autostart.ps1 (Scheduled Tasks for MySQL/Backend/Frontend, restart-on-failure). **Requires Admin PowerShell** to register ONLOGON tasks (creation was access-denied in this session).
+- Updated deploy/DEPLOYMENT.md with Windows auto-start steps. Services currently running and verified (health 200, frontend 4173).
+- Honest: keeps ADCS active while laptop is on; not 24/7 independent of laptop. No secrets committed.
+

@@ -79,16 +79,19 @@ def test_email_authentication_lifecycle_and_role_permissions(client, db, monkeyp
             "role_requested": "student",
         },
     ).status_code == 400
-    assert client.post(
+    register = client.post(
         "/api/v1/auth/register",
         json={
             "email": f"admin-{uuid.uuid4().hex[:8]}@test.com",
             "password": password,
-            "full_name": "Self Promoted Admin",
+            "full_name": "Pending University Admin",
             "institution_id": institution.id,
             "role_requested": "university_admin",
+            "staff_number": f"ADM-{uuid.uuid4().hex[:6]}",
         },
-    ).status_code == 403
+    )
+    assert register.status_code == 201
+    assert "approval" in register.json()["message"].lower()
 
     assert client.post(
         "/api/v1/auth/forgot-password",

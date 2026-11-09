@@ -116,11 +116,11 @@ describe('authentication pages', () => {
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test Lecturer' } })
     fireEvent.change(screen.getByLabelText('Email address'), { target: { value: 'lecturer@example.test' } })
     fireEvent.change(screen.getByLabelText('Account type'), { target: { value: 'lecturer' } })
-    fireEvent.change(screen.getByLabelText('Staff number'), { target: { value: 'STAFF-8' } })
+    fireEvent.change(screen.getByLabelText('Staff / employee number'), { target: { value: 'STAFF-8' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'StrongPass123!' } })
     fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'StrongPass123!' } })
     fireEvent.change(screen.getByLabelText('Institution'), { target: { value: '8' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Request lecturer account' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit account request' }))
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/auth/register', {
       email: 'lecturer@example.test',

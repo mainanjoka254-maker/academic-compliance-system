@@ -3,7 +3,7 @@ import api from '@/services/api'
 import AcademicDocumentsPanel from '@/components/AcademicDocumentsPanel'
 import LecturerManagementPanel from '@/components/LecturerManagementPanel'
 import ComplianceAnalysisPanel from '@/components/ComplianceAnalysisPanel'
-import LecturerRegistrationRequestsPanel from '@/components/LecturerRegistrationRequestsPanel'
+import AccountRequestsPanel from '@/components/AccountRequestsPanel'
 
 export default function AdminDashboard() {
   const [summary, setSummary] = useState<any>(null)
@@ -23,7 +23,7 @@ export default function AdminDashboard() {
       )}
       <ComplianceAnalysisPanel />
       <AcademicDocumentsPanel mode="reviewer" />
-      <LecturerRegistrationRequestsPanel />
+      <AccountRequestsPanel />
       <LecturerManagementPanel />
     </div>
   )

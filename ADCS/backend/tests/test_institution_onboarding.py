@@ -240,14 +240,29 @@ def test_public_registration_cannot_request_privileged_roles(client, db):
     )
     db.add(institution)
     db.commit()
+    # Staff roles may be requested, but remain pending approval (no privilege escalation).
     response = client.post(
         "/api/v1/auth/register",
         json={
             "email": f"admin-request-{uuid.uuid4().hex[:8]}@test.com",
             "password": "StrongTestPassword123!",
-            "full_name": "Privilege Escalation Attempt",
+            "full_name": "Pending Admin Request",
             "institution_id": institution.id,
             "role_requested": "university_admin",
+            "staff_number": f"ADM-{uuid.uuid4().hex[:6]}",
         },
     )
-    assert response.status_code == 403
+    assert response.status_code == 201
+    assert "approval" in response.json()["message"].lower()
+    # A non-requestable role is rejected.
+    bad = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": f"bad-{uuid.uuid4().hex[:8]}@test.com",
+            "password": "StrongTestPassword123!",
+            "full_name": "Bad Role",
+            "institution_id": institution.id,
+            "role_requested": "super_admin",
+        },
+    )
+    assert bad.status_code == 422
