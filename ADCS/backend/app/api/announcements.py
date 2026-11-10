@@ -6,6 +6,8 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.announcement import Announcement
 from app.models.user import User
+from app.models.role import Role
+from app.services.notification_service import create_notification
 
 router = APIRouter(prefix="/announcements", tags=["Announcements"])
 
@@ -35,11 +37,28 @@ def create_announcement(payload: dict, db: Session = Depends(get_db), current_us
     a = Announcement(
         institution_id=current_user.institution_id,
         author_id=current_user.id,
-        title=payload.get("title", ""),
-        body=payload.get("body", ""),
-        audience=payload.get("audience", "all"),
+        title=(payload.get("title") or "")[:255],
+        body=(payload.get("body") or ""),
+        audience=(payload.get("audience") or "all"),
     )
     db.add(a)
+    db.flush()
+    # notify audience (in-app, real event)
+    uq = db.query(User).filter(User.is_active.is_(True))
+    if not current_user.is_superuser and current_user.institution_id:
+        uq = uq.filter((User.institution_id == current_user.institution_id) | (User.institution_id.is_(None)))
+    if a.audience and a.audience != "all":
+        uq = uq.join(User.roles).filter(Role.name == a.audience)
+    recipients = uq.all()
+    seen = set()
+    for u in recipients:
+        if u.id in seen:
+            continue
+        seen.add(u.id)
+        try:
+            create_notification(db, u.id, f"Announcement: {a.title}", (a.body or "")[:500], type_="announcement", institution_id=a.institution_id or u.institution_id, category="announcement", priority="normal", related_type="announcement", related_id=a.id)
+        except Exception:
+            pass
     db.commit()
     db.refresh(a)
     return {"id": a.id, "title": a.title}

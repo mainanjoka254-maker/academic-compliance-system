@@ -93,6 +93,18 @@ def create_incident(payload: ComplianceIncidentCreate, db: Session = Depends(get
                             student_id=student.id if student else None,
                             course_id=course.id if course else None)
     db.add(inc); db.commit(); db.refresh(inc)
+    try:
+        from app.models.role import Role
+        from app.services.notification_service import create_notification
+        staff = db.query(User).join(User.roles).filter(User.institution_id == inst_id, Role.name.in_(["compliance_officer", "university_admin", "registrar"])).all()
+        seen = set()
+        for u in staff:
+            if u.id in seen:
+                continue
+            seen.add(u.id)
+            create_notification(db, u.id, f"New incident: {inc.title}", f"Incident #{inc.id} reported ({inc.incident_type}, {inc.priority}).", type_="new_case", institution_id=inst_id, category="compliance", priority="high" if inc.priority in ("high", "critical") else "normal", related_type="incident", related_id=inc.id, send_email_flag=(inc.priority in ("high", "critical")), to_email=u.email)
+    except Exception:
+        pass
     return {"id": inc.id, "title": inc.title, "status": inc.status}
 
 

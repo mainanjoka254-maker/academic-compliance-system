@@ -19,6 +19,7 @@ from app.schemas.auth import (
 from app.services.email_service import send_email
 from app.services.notification_service import create_notification
 from app.services.audit_service import log_action
+from app.services.account_service import record_login, create_user_session
 from app.core.rate_limit import limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -193,22 +194,36 @@ def verify_otp(payload: OTPVerifyRequest, request: Request, db: Session = Depend
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit(settings.RATE_LIMIT_LOGIN)
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == str(payload.email).strip().lower()).first()
+    normalized_email = str(payload.email).strip().lower()
+    user = db.query(User).filter(User.email == normalized_email).first()
     if not user or not user.hashed_password or not verify_password(payload.password, user.hashed_password):
-        log_action(db, "login_failed", success=False)
+        record_login(db, getattr(user, "id", None), normalized_email, getattr(user, "institution_id", None) if user else None, False, "password", request=request, failure_reason="invalid_credentials")
+        log_action(db, "login_failed", user_id=getattr(user, "id", None), institution_id=getattr(user, "institution_id", None) if user else None, success=False)
+        db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.is_verified:
+        record_login(db, user.id, normalized_email, user.institution_id, False, "password", request=request, failure_reason="email_not_verified")
+        db.commit()
         raise HTTPException(status_code=403, detail="Please verify your email address before signing in.")
     if user.approval_status == "pending":
         role_label = (user.requested_role or "account").replace("_", " ")
+        record_login(db, user.id, normalized_email, user.institution_id, False, "password", request=request, failure_reason="pending_approval")
+        db.commit()
         raise HTTPException(status_code=403, detail=f"Your {role_label} account request is awaiting institutional approval.")
     if user.approval_status == "rejected":
+        record_login(db, user.id, normalized_email, user.institution_id, False, "password", request=request, failure_reason="not_approved")
+        db.commit()
         raise HTTPException(status_code=403, detail="Your account request was not approved. Contact your institution.")
     if not user.is_active:
+        record_login(db, user.id, normalized_email, user.institution_id, False, "password", request=request, failure_reason="inactive")
+        db.commit()
         raise HTTPException(status_code=403, detail="Account not active.")
-    user.last_login_at = datetime.now(timezone.utc); db.commit()
+    user.last_login_at = datetime.now(timezone.utc)
     roles = [r.name for r in user.roles]
     access = create_access_token({"sub": str(user.id), "roles": roles, "institution_id": user.institution_id})
     refresh = create_refresh_token({"sub": str(user.id)})
+    create_user_session(db, user.id, access, request=request, expires_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    record_login(db, user.id, normalized_email, user.institution_id, True, "password", request=request)
     log_action(db, "login_success", user_id=user.id, institution_id=user.institution_id)
+    db.commit()
     return TokenResponse(access_token=access, refresh_token=refresh, user_id=user.id, role=roles[0] if roles else None)

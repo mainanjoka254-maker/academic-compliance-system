@@ -37,6 +37,14 @@ class User(Base, TimestampMixin):
     roles = relationship("Role", secondary="user_roles", back_populates="users")
     student_profile = relationship("Student", back_populates="user", uselist=False)
     lecturer_profile = relationship("Lecturer", back_populates="user", uselist=False)
+    profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    student_profile_detail = relationship("StudentProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    lecturer_profile_detail = relationship("LecturerProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    staff_profile_detail = relationship("StaffProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    settings = relationship("UserSetting", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    notification_preferences = relationship("UserNotificationPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    privacy_preferences = relationship("UserPrivacyPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
 
     # audit
     audit_logs = relationship("AuditLog", back_populates="user")

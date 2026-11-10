@@ -309,14 +309,31 @@ def review_document(
         note=document.review_note,
     ))
     recipient_id = document.student.user_id if document.student_id else document.uploaded_by_id
-    db.add(Notification(
-        institution_id=document.institution_id,
-        user_id=recipient_id,
-        type="document_review",
-        title=f"Document {payload.status}",
-        message=f"{document.original_filename} was {payload.status}.",
-        link="/dashboard",
-    ))
+    try:
+        from app.services.notification_service import create_notification
+        create_notification(
+            db,
+            recipient_id,
+            f"Document {payload.status}",
+            f"{document.original_filename} was {payload.status}.",
+            type_="document_review",
+            institution_id=document.institution_id,
+            category="academic",
+            priority="normal",
+            link="/dashboard",
+            related_type="academic_document",
+            related_id=document.id,
+            send_email_flag=True,
+        )
+    except Exception:
+        db.add(Notification(
+            institution_id=document.institution_id,
+            user_id=recipient_id,
+            type="document_review",
+            title=f"Document {payload.status}",
+            message=f"{document.original_filename} was {payload.status}.",
+            link="/dashboard",
+        ))
     db.add(AuditLog(
         institution_id=document.institution_id,
         user_id=current_user.id,

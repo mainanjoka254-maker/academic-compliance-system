@@ -1,10 +1,11 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   html { scroll-behavior: smooth; }
   body { @apply font-sans text-slate-800 antialiased bg-slate-50; }
+  .dark body { @apply bg-slate-950 text-slate-100; }
   ::selection { @apply bg-primary-200 text-primary-900; }
 }
 

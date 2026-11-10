@@ -29,6 +29,7 @@ from app.api.announcements import router as announcements_router
 from app.api.support import router as support_router
 from app.api.stats import router as stats_router
 from app.api.ai_assistant import router as ai_router
+from app.api.profile import router as profile_router
 from app.core.rate_limit import limiter
 
 app = FastAPI(title=settings.APP_NAME, version="1.0.0", docs_url="/docs", redoc_url="/redoc")
@@ -49,7 +50,7 @@ for r in [auth_router, auth_extra_router, auth_google_router, institutions_route
           courses_router, academic_router, incidents_router, cases_router, policies_router,
            risk_router, notifications_router, reports_router, admin_router, documents_router,
            lecturers_router, compliance_analysis_router, academic_structure_router, settings_router,
-           announcements_router, support_router, stats_router, ai_router]:
+           announcements_router, support_router, stats_router, ai_router, profile_router]:
     app.include_router(r, prefix=API)
 
 

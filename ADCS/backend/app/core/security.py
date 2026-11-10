@@ -45,6 +45,8 @@ def decode_token(token: str) -> Dict[str, Any]:
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     from app.models.user import User
+    from app.models.session import UserSession
+    from app.services.account_service import hash_session_token
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     payload = decode_token(token)
@@ -58,4 +60,14 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
+    token_hash = hash_session_token(token)
+    sess = db.query(UserSession).filter(UserSession.user_id == user.id, UserSession.session_token_hash == token_hash).first()
+    if sess and (not sess.is_active or sess.revoked_at):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session has been revoked")
+    if sess:
+        sess.last_active_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
     return user

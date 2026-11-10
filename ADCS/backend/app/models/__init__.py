@@ -9,13 +9,16 @@ from app.models.academic import AcademicTerm, Course, CourseEnrollment, Attendan
 from app.models.compliance import AcademicPolicy, ComplianceRule, ComplianceIncident
 from app.models.compliance_case import ComplianceCase, Investigation, Appeal, CaseAudit
 from app.models.risk import RiskAssessment, RiskAlert
-from app.models.notification import Notification, AuditLog, EmailVerificationToken, PasswordResetToken
+from app.models.notification import Notification, NotificationDelivery, AuditLog, EmailVerificationToken, PasswordResetToken
 from app.models.oauth import GoogleOAuthState
 from app.models.document import AcademicDocument, DocumentReview
-from app.models.user_setting import UserSetting
+from app.models.user_setting import UserSetting, UserNotificationPreference, UserPrivacyPreference
 from app.models.announcement import Announcement
-from app.models.support_ticket import SupportTicket
+from app.models.support_ticket import SupportTicket, SupportTicketMessage
 from app.models.accreditation import AccreditationFramework
+from app.models.user_profile import UserProfile, StudentProfile, LecturerProfile, StaffProfile
+from app.models.session import UserSession, LoginHistory
+from app.models.activity import UserActivityLog
 
 __all__ = [
     "TimestampMixin", "Institution", "Department", "Faculty", "AcademicProgram",
@@ -23,7 +26,10 @@ __all__ = [
     "Student", "Lecturer", "AcademicTerm", "Course", "CourseEnrollment",
     "AttendanceRecord", "AssessmentRecord", "AcademicPolicy", "ComplianceRule",
     "ComplianceIncident", "ComplianceCase", "Investigation", "Appeal", "CaseAudit",
-    "RiskAssessment", "RiskAlert", "Notification", "AuditLog",
+    "RiskAssessment", "RiskAlert", "Notification", "NotificationDelivery", "AuditLog",
     "EmailVerificationToken", "PasswordResetToken", "GoogleOAuthState",
-    "AcademicDocument", "DocumentReview",
+    "AcademicDocument", "DocumentReview", "UserSetting", "UserNotificationPreference",
+    "UserPrivacyPreference", "Announcement", "SupportTicket", "SupportTicketMessage",
+    "AccreditationFramework", "UserProfile", "StudentProfile", "LecturerProfile",
+    "StaffProfile", "UserSession", "LoginHistory", "UserActivityLog",
 ]

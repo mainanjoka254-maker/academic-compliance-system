@@ -14,6 +14,8 @@ import About from '@/pages/About'
 import Features from '@/pages/Features'
 import InstitutionsPage from '@/pages/Institutions'
 import Settings from '@/pages/Settings'
+import StudentProfile from '@/pages/StudentProfile'
+import VerifyEmailChange from '@/pages/VerifyEmailChange'
 
 import DashboardLayout from '@/layouts/DashboardLayout'
 import StudentDashboard from '@/dashboards/StudentDashboard'
@@ -51,7 +53,7 @@ export default function App() {
         <Route path="/about" element={<About />} />
         <Route path="/features" element={<Features />} />
         <Route path="/institutions" element={<InstitutionsPage />} />
-        <Route path="/settings" element={<Settings />} />
+        <Route path="/settings" element={<Protected><Settings /></Protected>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/account-status" element={<AccountStatus />} />
@@ -60,13 +62,17 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/auth/callback" element={<GoogleCallback />} />
 
+        <Route path="/verify-email-change" element={<VerifyEmailChange />} />
+
         <Route path="/dashboard" element={<Protected><DashboardLayout /></Protected>}>
           <Route path="student" element={<Protected roles={['student']}><StudentDashboard /></Protected>} />
+          <Route path="student/profile" element={<Protected roles={['student']}><StudentProfile /></Protected>} />
           <Route path="lecturer" element={<Protected roles={['lecturer']}><LecturerDashboard /></Protected>} />
           <Route path="admin" element={<Protected roles={['university_admin']}><AdminDashboard /></Protected>} />
           <Route path="registrar" element={<Protected roles={['registrar']}><RegistrarDashboard /></Protected>} />
           <Route path="compliance" element={<Protected roles={['compliance_officer']}><ComplianceDashboard /></Protected>} />
           <Route path="superadmin" element={<Protected roles={['super_admin']}><SuperAdminDashboard /></Protected>} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </AuthProvider>

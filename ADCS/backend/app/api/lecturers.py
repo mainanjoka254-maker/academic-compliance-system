@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import ensure_institution_access, is_super_admin, require_roles
 from app.core.security import get_current_user, hash_password
-from app.models.academic import AssessmentRecord, Course
+from app.models.academic import AssessmentRecord, Course, CourseEnrollment
 from app.models.academic_structure import AcademicProgram
 from app.models.document import AcademicDocument
 from app.models.institution import Institution
@@ -521,3 +521,53 @@ def download_lecturer_report(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/me")
+def get_my_lecturer_profile(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    roles = _role_names(current_user)
+    if "lecturer" not in roles and not is_super_admin(current_user):
+        raise HTTPException(status_code=403, detail="Lecturer role required")
+    lecturer = db.query(Lecturer).filter(Lecturer.user_id == current_user.id).first()
+    if not lecturer:
+        raise HTTPException(status_code=404, detail="Lecturer profile not found")
+    payload = _lecturer_payload(db, lecturer)
+    payload["compliance"] = _submission_metrics(db, lecturer)
+    payload["courses_detail"] = []
+    for c in db.query(Course).filter(Course.lecturer_id == lecturer.id, Course.institution_id == lecturer.institution_id).all():
+        enroll_count = db.query(CourseEnrollment).filter(CourseEnrollment.course_id == c.id, CourseEnrollment.status == "enrolled").count()
+        payload["courses_detail"].append({"id": c.id, "code": c.code, "name": c.name, "credits": c.credits, "term_id": c.term_id, "is_active": c.is_active, "enrolled_students": enroll_count})
+    return payload
+
+
+@router.get("/me/students")
+def get_my_lecturer_students(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    roles = _role_names(current_user)
+    if "lecturer" not in roles and not is_super_admin(current_user):
+        raise HTTPException(status_code=403, detail="Lecturer role required")
+    lecturer = db.query(Lecturer).filter(Lecturer.user_id == current_user.id).first()
+    if not lecturer:
+        return []
+    rows = (
+        db.query(Student, User, Course)
+        .join(User, User.id == Student.user_id)
+        .join(CourseEnrollment, CourseEnrollment.student_id == Student.id)
+        .join(Course, Course.id == CourseEnrollment.course_id)
+        .filter(
+            Course.lecturer_id == lecturer.id,
+            Course.institution_id == lecturer.institution_id,
+            Student.institution_id == lecturer.institution_id,
+            CourseEnrollment.status == "enrolled",
+        )
+        .all()
+    )
+    out = {}
+    for s, u, c in rows:
+        item = out.setdefault(s.id, {
+            "id": s.id, "user_id": s.user_id, "student_number": s.student_number, "full_name": u.full_name, "email": u.email,
+            "program": s.program, "year_of_study": s.year_of_study, "status": s.status,
+            "attendance_percentage": s.attendance_percentage, "gpa": s.gpa, "courses": []
+        })
+        if not any(x["id"] == c.id for x in item["courses"]):
+            item["courses"].append({"id": c.id, "code": c.code, "name": c.name})
+    return list(out.values())

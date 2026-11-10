@@ -80,6 +80,14 @@ def create_case(payload: ComplianceCaseCreate, db: Session = Depends(get_db), cu
     db.add(case); db.commit(); db.refresh(case)
     audit = CaseAudit(institution_id=student.institution_id, case_id=case.id, actor_id=current_user.id, action="case_created", details=case.title)
     db.add(audit); db.commit()
+    try:
+        from app.services.notification_service import create_notification
+        if student.user_id:
+            create_notification(db, student.user_id, f"Compliance case opened: {case.case_number}", f"A compliance case has been opened: {case.title}.", type_="new_case", institution_id=student.institution_id, category="compliance", priority=case.priority or "normal", related_type="compliance_case", related_id=case.id)
+        if case.assigned_officer_id:
+            create_notification(db, case.assigned_officer_id, f"Case assigned: {case.case_number}", f"You have been assigned case {case.case_number}: {case.title}.", type_="new_case", institution_id=student.institution_id, category="compliance", priority=case.priority or "normal", related_type="compliance_case", related_id=case.id)
+    except Exception:
+        pass
     return {"id": case.id, "case_number": case.case_number, "status": case.status}
 
 
